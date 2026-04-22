@@ -7,7 +7,7 @@ import FilterMenu from "../components/FilterMenu";
 const Jobs = () => {
   const [jobs, setJobs] = useState([]);
   const [search, setSearch] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false); // 🔥 start false
   const [error, setError] = useState("");
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -27,7 +27,6 @@ const Jobs = () => {
 
       let url = `/jobs?search=${search}&page=${page}&limit=5&sort=${sort}`;
 
-      // ✅ jobType (multi-select)
       if (jobType.length > 0) {
         url += `&jobType=${jobType.join(",")}`;
       }
@@ -44,21 +43,14 @@ const Jobs = () => {
     }
   };
 
-  // 🔁 controlled fetch (NO infinite loop)
+  // 🔁 debounce (smooth typing experience)
   useEffect(() => {
-    fetchJobs();
-  }, [page, search, filters.sort, filters.jobType.join(",")]);
+    const delay = setTimeout(() => {
+      fetchJobs();
+    }, 400); // wait for user to stop typing
 
-  // 🔄 loading UI
-  if (loading) {
-    return (
-      <div className="jobs-grid">
-        {[...Array(6)].map((_, i) => (
-          <JobCardSkeleton key={i} />
-        ))}
-      </div>
-    );
-  }
+    return () => clearTimeout(delay);
+  }, [page, search, filters.sort, filters.jobType.join(",")]);
 
   return (
     <div className="jobs-container">
@@ -98,8 +90,6 @@ const Jobs = () => {
 
       {/* 🔥 Active Filters */}
       <div className="active-filters">
-
-        {/* jobType chips */}
         {filters.jobType.map((type) => (
           <span key={type} className="filter-chip">
             {type}
@@ -117,7 +107,6 @@ const Jobs = () => {
           </span>
         ))}
 
-        {/* clear all */}
         {filters.jobType.length > 0 && (
           <button
             className="clear-btn"
@@ -136,7 +125,11 @@ const Jobs = () => {
 
       {/* 📄 Jobs */}
       <div className="jobs-grid">
-        {jobs.length === 0 ? (
+        {loading ? (
+          [...Array(6)].map((_, i) => (
+            <JobCardSkeleton key={i} />
+          ))
+        ) : jobs.length === 0 ? (
           <p>No jobs found</p>
         ) : (
           jobs.map((job) => (
