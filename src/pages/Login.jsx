@@ -2,6 +2,7 @@ import { useState, useContext } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import API from "../services/api";
 import { AuthContext } from "../context/AuthContext";
+import { IconBriefcase, IconAlertCircle } from "../components/icons";
 
 const Login = () => {
   const navigate = useNavigate();
@@ -28,30 +29,19 @@ const Login = () => {
 
     try {
       const res = await API.post("/users/login", formData);
-
-      // backend response (your actual structure)
       const { user, token, refreshToken } = res.data;
 
-      // safety check (prevents silent bugs)
       if (!token || !refreshToken || !user) {
         throw new Error("Invalid login response from server");
       }
 
-      // context handles:
-      // - localStorage
-      // - axios sync
-      // - state update
       login(user, token, refreshToken);
-
       setError("");
       navigate("/");
     } catch (error) {
       console.log("Login error:", error);
-
       setError(
-        error.response?.data?.message ||
-          error.message ||
-          "Login failed"
+        error.response?.data?.message || error.message || "Login failed"
       );
     } finally {
       setLoading(false);
@@ -59,52 +49,60 @@ const Login = () => {
   };
 
   return (
-    <div className="auth-container">
+    <div className="auth-page">
       <div className="auth-card">
-        <h2>Welcome Back</h2>
+        <div className="auth-card__icon">
+          <IconBriefcase />
+        </div>
+        <h1>Welcome back</h1>
+        <p className="auth-subtitle">Log in to continue your job search</p>
 
-        {error && <p className="error">{error}</p>}
+        {error && (
+          <div className="alert alert--error mb-4">
+            <IconAlertCircle />
+            <span>{error}</span>
+          </div>
+        )}
 
-        <form className="auth-form" onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label>Email</label>
+        <form className="auth-form" onSubmit={handleSubmit} noValidate>
+          <div className="form-field">
+            <label className="form-label" htmlFor="email">Email</label>
             <input
+              id="email"
+              className="input"
               type="email"
               name="email"
               value={formData.email}
               onChange={handleChange}
-              placeholder="Enter your email"
+              placeholder="you@example.com"
+              autoComplete="email"
               required
             />
           </div>
 
-          <div className="form-group">
-            <label>Password</label>
+          <div className="form-field">
+            <label className="form-label" htmlFor="password">Password</label>
             <input
+              id="password"
+              className="input"
               type="password"
               name="password"
               value={formData.password}
               onChange={handleChange}
               placeholder="Enter your password"
+              autoComplete="current-password"
               required
             />
           </div>
 
-          <button
-            type="submit"
-            className="auth-button"
-            disabled={loading}
-          >
-            {loading ? "Logging in..." : "Login"}
+          <button type="submit" className="btn btn--primary btn--block btn--lg" disabled={loading}>
+            {loading ? "Logging in..." : "Log in"}
           </button>
         </form>
 
-        <div className="auth-footer">
-          <p>
-            Don't have an account?{" "}
-            <Link to="/register">Register</Link>
-          </p>
-        </div>
+        <p className="auth-footer">
+          Don't have an account? <Link to="/register">Create one</Link>
+        </p>
       </div>
     </div>
   );

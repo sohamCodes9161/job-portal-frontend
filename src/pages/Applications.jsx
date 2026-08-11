@@ -3,6 +3,10 @@ import API from "../services/api";
 import { AuthContext } from "../context/AuthContext";
 import { Link } from "react-router-dom";
 import ApplicationSkeleton from "../components/ApplicationSkeleton";
+import EmptyState from "../components/EmptyState";
+import { IconAlertCircle, IconInbox } from "../components/icons";
+
+const FILTERS = ["all", "pending", "reviewed", "accepted", "rejected"];
 
 const Applications = () => {
   const { token } = useContext(AuthContext);
@@ -10,7 +14,7 @@ const Applications = () => {
   const [applications, setApplications] = useState([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState("all"); // 🔥 NEW
+  const [filter, setFilter] = useState("all");
 
   const fetchApplications = async () => {
     try {
@@ -18,14 +22,12 @@ const Applications = () => {
       setLoading(true);
 
       const res = await API.get("/jobs/getmyapplications", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
 
       setApplications(res.data.applications || []);
     } catch (err) {
-      setError("Failed to load applications");
+      setError("We couldn't load your applications. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -33,91 +35,82 @@ const Applications = () => {
 
   useEffect(() => {
     fetchApplications();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // 🔥 FILTER LOGIC
-  const filteredApplications = applications.filter((app) => {
-    if (filter === "all") return true;
-    return app.status === filter;
-  });
-
-  if (loading) {
-    return (
-      <div className="applications-list">
-        {[...Array(5)].map((_, i) => (
-          <ApplicationSkeleton key={i} />
-        ))}
-      </div>
-    );
-  }
-
-  if (error) return <p>{error}</p>;
+  const filteredApplications = applications.filter((app) =>
+    filter === "all" ? true : app.status === filter
+  );
 
   return (
-    <div className="applications-container">
-      <h2>My Applications</h2>
-
-      {/* 🔥 FILTER BAR */}
-      <div className="filter-bar">
-        <button
-          className={filter === "all" ? "active" : ""}
-          onClick={() => setFilter("all")}
-        >
-          All
-        </button>
-
-        <button
-          className={filter === "pending" ? "active" : ""}
-          onClick={() => setFilter("pending")}
-        >
-          Pending
-        </button>
-
-        <button
-          className={filter === "reviewed" ? "active" : ""}
-          onClick={() => setFilter("reviewed")}
-        >
-          Reviewed
-        </button>
-
-        <button
-          className={filter === "accepted" ? "active" : ""}
-          onClick={() => setFilter("accepted")}
-        >
-          Accepted
-        </button>
-
-        <button
-          className={filter === "rejected" ? "active" : ""}
-          onClick={() => setFilter("rejected")}
-        >
-          Rejected
-        </button>
+    <div className="applications-page">
+      <div className="page-header">
+        <div>
+          <h1 className="page-header__title">My Applications</h1>
+          <p className="page-header__subtitle">
+            Track the status of every job you've applied to
+          </p>
+        </div>
       </div>
 
+      <div className="filter-bar" role="tablist" aria-label="Filter applications by status">
+        {FILTERS.map((f) => (
+          <button
+            key={f}
+            className={filter === f ? "active" : ""}
+            onClick={() => setFilter(f)}
+            role="tab"
+            aria-selected={filter === f}
+          >
+            {f}
+          </button>
+        ))}
+      </div>
+
+      {error && (
+        <div className="alert alert--error mb-4">
+          <IconAlertCircle />
+          <span>{error}</span>
+        </div>
+      )}
+
       <div className="applications-list">
-        {filteredApplications.length === 0 ? (
-          <p style={{ textAlign: "center", color: "#6b7280" }}>
-            No applications found for this filter.
-          </p>
+        {loading ? (
+          [...Array(4)].map((_, i) => <ApplicationSkeleton key={i} />)
+        ) : filteredApplications.length === 0 ? (
+          <EmptyState
+            icon={<IconInbox />}
+            title="No applications here"
+            description={
+              filter === "all"
+                ? "You haven't applied to any jobs yet. Start browsing to find your next role."
+                : `You have no applications with status "${filter}".`
+            }
+            action={
+              filter === "all" && (
+                <Link to="/" className="btn btn--primary btn--sm">
+                  Browse jobs
+                </Link>
+              )
+            }
+          />
         ) : (
           filteredApplications.map((app) => (
             <div key={app._id} className="application-card">
-              <h3>{app.job?.title}</h3>
-              <p>{app.job?.company}</p>
+              <div className="application-card__info">
+                <h3>{app.job?.title}</h3>
+                <p>{app.job?.company}</p>
+              </div>
 
-              <span className={`status-badge ${app.status}`}>
-                {app.status}
-              </span>
-
-              <p className="date">
-                Applied on:{" "}
-                {new Date(app.createdAt).toLocaleDateString()}
-              </p>
-
-              <Link to={`/jobs/${app.job?._id}`}>
-                <button>View Job</button>
-              </Link>
+              <div className="application-card__meta">
+                <span className={`badge badge--${app.status}`}>{app.status}</span>
+                <span className="application-card__date">
+                  Applied {new Date(app.createdAt).toLocaleDateString()}
+                </span>
+                <Link to={`/jobs/${app.job?._id}`} className="btn btn--secondary btn--sm">
+                  View job
+                </Link>
+              </div>
             </div>
           ))
         )}

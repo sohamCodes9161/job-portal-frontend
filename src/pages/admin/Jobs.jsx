@@ -1,8 +1,18 @@
 import { useEffect, useState, useContext } from "react";
 import API from "../../services/api";
 import { AuthContext } from "../../context/AuthContext";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { toast } from "react-hot-toast";
+import Loader from "../../components/Loader";
+import EmptyState from "../../components/EmptyState";
+import {
+  IconPlus,
+  IconEdit,
+  IconTrash,
+  IconUsers,
+  IconInbox,
+  IconAlertCircle,
+} from "../../components/icons";
 
 const AdminJobs = () => {
   const navigate = useNavigate();
@@ -10,24 +20,20 @@ const AdminJobs = () => {
 
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
   const [selectedJob, setSelectedJob] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
-  // 🔹 Fetch jobs
   const fetchJobs = async () => {
     try {
       setLoading(true);
-
       const res = await API.get("/jobs/my-jobs", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
-
       setJobs(res.data.jobs || []);
     } catch (err) {
       console.log(err.response);
-      setMessage("Failed to load jobs");
+      setError("Failed to load jobs");
     } finally {
       setLoading(false);
     }
@@ -35,15 +41,14 @@ const AdminJobs = () => {
 
   useEffect(() => {
     if (token) fetchJobs();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
-  // 🔹 Delete job
   const handleDelete = async (id) => {
     try {
+      setDeleting(true);
       await API.delete(`/jobs/${id}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
 
       setJobs((prev) => prev.filter((job) => job._id !== id));
@@ -51,93 +56,121 @@ const AdminJobs = () => {
     } catch (err) {
       console.log(err.response);
       toast.error(err.response?.data?.message || "Delete failed");
+    } finally {
+      setDeleting(false);
+      setSelectedJob(null);
     }
   };
 
-  if (loading) {
-    return (
-      <div className="loading-container">
-        <div className="loader"></div>
-      </div>
-    );
-  }
+  if (loading) return <Loader label="Loading jobs..." />;
 
   return (
-    <div className="applications-container">
-      <h2>Manage Jobs</h2>
+    <div>
+      <div className="page-header">
+        <div>
+          <h1 className="page-header__title">Manage Jobs</h1>
+          <p className="page-header__subtitle">Edit, remove, or review applicants for your listings</p>
+        </div>
+        <Link to="/admin/jobs/create" className="btn btn--primary">
+          <IconPlus /> Post a job
+        </Link>
+      </div>
 
-      {message && <p>{message}</p>}
+      {error && (
+        <div className="alert alert--error mb-4">
+          <IconAlertCircle />
+          <span>{error}</span>
+        </div>
+      )}
 
       <div className="applications-list">
         {jobs.length === 0 ? (
-          <div className="empty-state">
-            <h3>No jobs yet</h3>
-            <p>Create your first job to get started</p>
-          </div>
+          <EmptyState
+            icon={<IconInbox />}
+            title="No jobs yet"
+            description="Create your first job listing to start receiving applicants."
+            action={
+              <Link to="/admin/jobs/create" className="btn btn--primary btn--sm">
+                Post a job
+              </Link>
+            }
+          />
         ) : (
           jobs.map((job) => (
-            <div key={job._id} className="job-card">
-
-              <div className="job-header">
-                <h3>{job.title}</h3>
-                <span className="job-type">{job.jobType}</span>
+            <div key={job._id} className="admin-job-card">
+              <div className="admin-job-card__top">
+                <div>
+                  <h3 className="admin-job-card__title">{job.title}</h3>
+                  <div className="admin-job-card__meta">
+                    <span>{job.company}</span>
+                    <span>{job.location}</span>
+                    {job.salary && <span>₹{job.salary}</span>}
+                  </div>
+                </div>
+                {job.jobType && (
+                  <span className="badge badge--neutral">{job.jobType.replace("-", " ")}</span>
+                )}
               </div>
 
-              <p className="company">{job.company}</p>
-              <p className="location">{job.location}</p>
+              <div className="admin-job-card__footer">
+                <span className="text-muted" style={{ fontSize: 12.5 }}>
+                  Posted {new Date(job.createdAt).toLocaleDateString()}
+                </span>
 
-              <div className="job-footer">
-                <span className="salary">{job.salary}</span>
-
-                <div className="actions">
+                <div className="admin-job-card__actions">
                   <button
-                    onClick={() =>
-                      navigate(`/admin/jobs/${job._id}/applicants`)
-                    }
+                    className="btn btn--secondary btn--sm"
+                    onClick={() => navigate(`/admin/jobs/${job._id}/applicants`)}
                   >
-                    Applicants
+                    <IconUsers width={15} height={15} /> Applicants
                   </button>
 
                   <button
-                    className="delete-btn"
+                    className="btn btn--secondary btn--sm"
+                    onClick={() => navigate(`/admin/jobs/${job._id}/edit`)}
+                  >
+                    <IconEdit /> Edit
+                  </button>
+
+                  <button
+                    className="btn btn--danger-ghost btn--sm"
                     onClick={() => setSelectedJob(job)}
                   >
-                    Delete
-                  </button>
-
-                  <button onClick={() => navigate(`/admin/jobs/${job._id}/edit`)}>
-                    Edit Job
+                    <IconTrash /> Delete
                   </button>
                 </div>
               </div>
-
             </div>
           ))
         )}
       </div>
 
-      {/* 🔥 Modal (rendered once, outside map) */}
       {selectedJob && (
-        <div className="modal-overlay">
-          <div className="modal">
-            <h3>Delete Job</h3>
+        <div className="modal-overlay" onClick={() => !deleting && setSelectedJob(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+            <div className="modal__icon">
+              <IconTrash />
+            </div>
+            <h3>Delete this job?</h3>
             <p>
-              Are you sure you want to delete{" "}
-              <strong>{selectedJob.title}</strong>?
+              Are you sure you want to delete <strong>{selectedJob.title}</strong>? This
+              action can't be undone and will remove all associated applications.
             </p>
 
             <div className="modal-actions">
-              <button onClick={() => setSelectedJob(null)}>
+              <button
+                className="btn btn--secondary"
+                onClick={() => setSelectedJob(null)}
+                disabled={deleting}
+              >
                 Cancel
               </button>
-
               <button
-                onClick={() => {
-                  handleDelete(selectedJob._id);
-                  setSelectedJob(null);
-                }}
+                className="btn btn--danger"
+                onClick={() => handleDelete(selectedJob._id)}
+                disabled={deleting}
               >
-                Confirm
+                {deleting ? "Deleting..." : "Delete"}
               </button>
             </div>
           </div>

@@ -1,8 +1,8 @@
-const Loader = () => {
+const Loader = ({ label = "Loading..." }) => {
   return (
-    <div className="loader-container">
-      <div className="spinner"></div>
-      <p>Loading...</p>
+    <div className="page-loading" role="status" aria-live="polite">
+      <div className="spinner" />
+      <p>{label}</p>
     </div>
   );
 };

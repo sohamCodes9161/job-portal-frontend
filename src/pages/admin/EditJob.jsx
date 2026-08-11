@@ -1,8 +1,11 @@
 import { useEffect, useState, useContext } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import API from "../../services/api";
 import { AuthContext } from "../../context/AuthContext";
 import toast from "react-hot-toast";
+import Loader from "../../components/Loader";
+import JobForm from "../../components/JobForm";
+import { IconArrowLeft } from "../../components/icons";
 
 const EditJob = () => {
   const { id } = useParams();
@@ -18,22 +21,22 @@ const EditJob = () => {
     jobType: "",
   });
 
+  const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
 
-  // 🔹 Fetch job by id
   const fetchJob = async () => {
     try {
       const res = await API.get(`/jobs/${id}`);
-
       const job = res.data.job;
 
       setForm({
-        title: job.title,
-        description: job.description,
-        company: job.company,
-        location: job.location,
-        salary: job.salary,
-        jobType: job.jobType,
+        title: job.title || "",
+        description: job.description || "",
+        company: job.company || "",
+        location: job.location || "",
+        salary: job.salary || "",
+        jobType: job.jobType || "",
       });
     } catch (err) {
       toast.error("Failed to load job");
@@ -44,86 +47,67 @@ const EditJob = () => {
 
   useEffect(() => {
     fetchJob();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // 🔹 Handle change
   const handleChange = (e) => {
-    setForm({
-      ...form,
-      [e.target.name]: e.target.value,
-    });
+    setForm({ ...form, [e.target.name]: e.target.value });
+    setErrors({ ...errors, [e.target.name]: undefined });
   };
 
-  // 🔹 Submit update
+  const validate = () => {
+    const next = {};
+    if (!form.title.trim()) next.title = "Job title is required";
+    if (!form.description.trim()) next.description = "Description is required";
+    if (!form.company.trim()) next.company = "Company is required";
+    if (!form.location.trim()) next.location = "Location is required";
+    if (!form.jobType) next.jobType = "Select a job type";
+    setErrors(next);
+    return Object.keys(next).length === 0;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!validate()) return;
 
     try {
+      setSubmitting(true);
       await API.put(`/jobs/${id}`, form, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
 
       toast.success("Job updated");
       navigate("/admin/jobs");
     } catch (err) {
       toast.error("Update failed");
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  if (loading) return <p>Loading job...</p>;
+  if (loading) return <Loader label="Loading job..." />;
 
   return (
     <div className="form-container">
-      <h2>Edit Job</h2>
+      <Link to="/admin/jobs" className="breadcrumb-back">
+        <IconArrowLeft /> Back to manage jobs
+      </Link>
 
-      <form className="job-form" onSubmit={handleSubmit}>
+      <div className="page-header">
+        <div>
+          <h1 className="page-header__title">Edit job</h1>
+          <p className="page-header__subtitle">Update the listing details below</p>
+        </div>
+      </div>
 
-        <input
-          name="title"
-          value={form.title}
-          onChange={handleChange}
-          placeholder="Job Title"
-        />
-
-        <textarea
-          name="description"
-          value={form.description}
-          onChange={handleChange}
-          placeholder="Description"
-        />
-
-        <input
-          name="company"
-          value={form.company}
-          onChange={handleChange}
-          placeholder="Company"
-        />
-
-        <input
-          name="location"
-          value={form.location}
-          onChange={handleChange}
-          placeholder="Location"
-        />
-
-        <input
-          name="salary"
-          value={form.salary}
-          onChange={handleChange}
-          placeholder="Salary"
-        />
-
-        <input
-          name="jobType"
-          value={form.jobType}
-          onChange={handleChange}
-          placeholder="Job Type"
-        />
-
-        <button type="submit">Update Job</button>
-      </form>
+      <JobForm
+        form={form}
+        onChange={handleChange}
+        onSubmit={handleSubmit}
+        submitting={submitting}
+        submitLabel="Save changes"
+        errors={errors}
+      />
     </div>
   );
 };

@@ -1,7 +1,10 @@
 import { useState, useContext } from "react";
 import API from "../../services/api";
 import { AuthContext } from "../../context/AuthContext";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
+import toast from "react-hot-toast";
+import JobForm from "../../components/JobForm";
+import { IconArrowLeft } from "../../components/icons";
 
 const CreateJob = () => {
   const { token } = useContext(AuthContext);
@@ -16,94 +19,65 @@ const CreateJob = () => {
     jobType: "",
   });
 
-  const [message, setMessage] = useState("");
+  const [errors, setErrors] = useState({});
+  const [submitting, setSubmitting] = useState(false);
 
-  // handle input change
   const handleChange = (e) => {
-    setForm({
-      ...form,
-      [e.target.name]: e.target.value,
-    });
+    setForm({ ...form, [e.target.name]: e.target.value });
+    setErrors({ ...errors, [e.target.name]: undefined });
   };
 
-  // handle submit
+  const validate = () => {
+    const next = {};
+    if (!form.title.trim()) next.title = "Job title is required";
+    if (!form.description.trim()) next.description = "Description is required";
+    if (!form.company.trim()) next.company = "Company is required";
+    if (!form.location.trim()) next.location = "Location is required";
+    if (!form.jobType) next.jobType = "Select a job type";
+    setErrors(next);
+    return Object.keys(next).length === 0;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!validate()) return;
 
     try {
-      setMessage("");
-
-      const res = await API.post("/jobs", form, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+      setSubmitting(true);
+      await API.post("/jobs", form, {
+        headers: { Authorization: `Bearer ${token}` },
       });
 
-      setMessage("Job created successfully!");
-
-      // redirect after success
-      setTimeout(() => {
-        navigate("/admin/jobs");
-      }, 1000);
-
+      toast.success("Job created successfully!");
+      navigate("/admin/jobs");
     } catch (err) {
-      setMessage(err.response?.data?.message || "Failed to create job");
+      toast.error(err.response?.data?.message || "Failed to create job");
+    } finally {
+      setSubmitting(false);
     }
   };
 
   return (
     <div className="form-container">
-      <h2>Create Job</h2>
+      <Link to="/admin/jobs" className="breadcrumb-back">
+        <IconArrowLeft /> Back to manage jobs
+      </Link>
 
-      <form className="job-form" onSubmit={handleSubmit}>
+      <div className="page-header">
+        <div>
+          <h1 className="page-header__title">Post a new job</h1>
+          <p className="page-header__subtitle">Fill in the details below to publish a listing</p>
+        </div>
+      </div>
 
-        <input
-          name="title"
-          placeholder="Job Title"
-          value={form.title}
-          onChange={handleChange}
-        />
-
-        <textarea
-          name="description"
-          placeholder="Description"
-          value={form.description}
-          onChange={handleChange}
-        />
-
-        <input
-          name="company"
-          placeholder="Company"
-          value={form.company}
-          onChange={handleChange}
-        />
-
-        <input
-          name="location"
-          placeholder="Location"
-          value={form.location}
-          onChange={handleChange}
-        />
-
-        <input
-          name="salary"
-          placeholder="Salary"
-          value={form.salary}
-          onChange={handleChange}
-        />
-
-        <input
-          name="jobType"
-          placeholder="Job Type"
-          value={form.jobType}
-          onChange={handleChange}
-        />
-
-        <button type="submit">Create Job</button>
-
-      </form>
-
-      {message && <p>{message}</p>}
+      <JobForm
+        form={form}
+        onChange={handleChange}
+        onSubmit={handleSubmit}
+        submitting={submitting}
+        submitLabel="Publish job"
+        errors={errors}
+      />
     </div>
   );
 };

@@ -1,14 +1,35 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { IconFilter, IconChevronLeft, IconCheck } from "./icons";
+
+const SORT_OPTIONS = [
+  { value: "-createdAt", label: "Newest first" },
+  { value: "createdAt", label: "Oldest first" },
+  { value: "-salary", label: "Highest paying" },
+  { value: "salary", label: "Lowest paying" },
+];
+
+const JOB_TYPES = ["full-time", "part-time", "internship", "contract"];
 
 const FilterMenu = ({ filters, setFilters, setPage }) => {
   const [open, setOpen] = useState(false);
   const [view, setView] = useState("main");
-
   const [tempFilters, setTempFilters] = useState(filters);
+  const containerRef = useRef(null);
+
+  // Close on outside click
+  useEffect(() => {
+    const handleClick = (e) => {
+      if (containerRef.current && !containerRef.current.contains(e.target)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
 
   const handleOpen = () => {
     setTempFilters(filters);
-    setOpen(!open);
+    setOpen((v) => !v);
     setView("main");
   };
 
@@ -21,7 +42,6 @@ const FilterMenu = ({ filters, setFilters, setPage }) => {
   const handleJobType = (value) => {
     setTempFilters((prev) => {
       const exists = prev.jobType.includes(value);
-
       return {
         ...prev,
         jobType: exists
@@ -32,81 +52,106 @@ const FilterMenu = ({ filters, setFilters, setPage }) => {
   };
 
   const handleApply = () => {
-    setFilters((prev) => ({
-      ...prev,
-      ...tempFilters,
-    }));
+    setFilters((prev) => ({ ...prev, ...tempFilters }));
     setPage(1);
     setOpen(false);
   };
 
   const handleClear = () => {
-    const cleared = {
-      sort: "-createdAt",
-      jobType: [],
-    };
-
+    const cleared = { sort: "-createdAt", jobType: [] };
     setTempFilters(cleared);
-    setFilters((prev) => ({
-      ...prev,
-      ...cleared,
-    }));
+    setFilters((prev) => ({ ...prev, ...cleared }));
     setPage(1);
   };
 
   return (
-    <div className="filter-container">
-      <button className="filter-btn" onClick={handleOpen}>
-        ⚙️ Filter
+    <div className="filter-container" ref={containerRef}>
+      <button
+        type="button"
+        className="btn btn--secondary"
+        onClick={handleOpen}
+        aria-haspopup="true"
+        aria-expanded={open}
+      >
+        <IconFilter />
+        Sort &amp; Filter
       </button>
 
       {open && (
-        <div className="filter-dropdown">
-
+        <div className="filter-dropdown" role="menu">
           {view === "main" && (
             <>
-              <p onClick={() => setView("sort")}>Sort</p>
-              <p onClick={() => setView("filter")}>Filter</p>
+              <div
+                className="filter-dropdown__item"
+                role="menuitem"
+                tabIndex={0}
+                onClick={() => setView("sort")}
+                onKeyDown={(e) => e.key === "Enter" && setView("sort")}
+              >
+                Sort by
+              </div>
+              <div
+                className="filter-dropdown__item"
+                role="menuitem"
+                tabIndex={0}
+                onClick={() => setView("jobType")}
+                onKeyDown={(e) => e.key === "Enter" && setView("jobType")}
+              >
+                Job type
+              </div>
             </>
           )}
 
           {view === "sort" && (
             <>
-              <button onClick={() => setView("main")}>⬅ Back</button>
-
-              <p onClick={() => handleSort("-createdAt")}>Newest</p>
-              <p onClick={() => handleSort("createdAt")}>Oldest</p>
-              <p onClick={() => handleSort("-salary")}>High Paying</p>
-              <p onClick={() => handleSort("salary")}>Low Paying</p>
-            </>
-          )}
-
-          {view === "filter" && (
-            <>
-              <button onClick={() => setView("main")}>⬅ Back</button>
-              <p onClick={() => setView("jobType")}>Job Type</p>
+              <button className="filter-dropdown__back" onClick={() => setView("main")}>
+                <IconChevronLeft /> Back
+              </button>
+              {SORT_OPTIONS.map((opt) => (
+                <div
+                  key={opt.value}
+                  className={`filter-dropdown__item${filters.sort === opt.value ? " active" : ""}`}
+                  role="menuitemradio"
+                  aria-checked={filters.sort === opt.value}
+                  tabIndex={0}
+                  onClick={() => handleSort(opt.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleSort(opt.value)}
+                >
+                  {opt.label}
+                  {filters.sort === opt.value && <IconCheck />}
+                </div>
+              ))}
             </>
           )}
 
           {view === "jobType" && (
             <>
-              <button onClick={() => setView("filter")}>⬅ Back</button>
+              <button className="filter-dropdown__back" onClick={() => setView("main")}>
+                <IconChevronLeft /> Back
+              </button>
 
-              {["full-time", "part-time", "internship", "contract"].map((type) => (
-                <p
+              {JOB_TYPES.map((type) => (
+                <div
                   key={type}
+                  className={`filter-dropdown__item${tempFilters.jobType.includes(type) ? " active" : ""}`}
+                  role="menuitemcheckbox"
+                  aria-checked={tempFilters.jobType.includes(type)}
+                  tabIndex={0}
                   onClick={() => handleJobType(type)}
-                  className={
-                    tempFilters.jobType.includes(type) ? "active" : ""
-                  }
+                  onKeyDown={(e) => e.key === "Enter" && handleJobType(type)}
                 >
-                  {type}
-                </p>
+                  {type.replace("-", " ")}
+                  {tempFilters.jobType.includes(type) && <IconCheck />}
+                </div>
               ))}
 
-              <div className="filter-actions">
-                <button onClick={handleApply}>Apply</button>
-                <button onClick={handleClear}>Clear</button>
+              <div className="filter-dropdown__actions">
+                <button className="btn btn--secondary btn--sm" onClick={handleClear}>
+                  Clear
+                </button>
+                <button className="btn btn--primary btn--sm" onClick={handleApply}>
+                  Apply
+                </button>
               </div>
             </>
           )}

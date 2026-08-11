@@ -4,7 +4,7 @@ import axios from "axios";
    BASE API INSTANCE
 ================================ */
 const API = axios.create({
-  baseURL: "https://job-portal-backend-9mmi.onrender.com/api",
+  baseURL: import.meta.env.VITE_API_URL || "http://localhost:5000/api",
 });
 
 /* ================================
